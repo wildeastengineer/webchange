@@ -4,7 +4,7 @@
     [webchange.editor-v2.course-table.state.selection :as selection-state]
     [webchange.editor-v2.course-table.utils.move-selection-horizontally :refer [move-selection-left move-selection-right]]))
 
-(defn- update-selection
+(defn update-selection
   [{:keys [direction selection] :as params}]
   (case direction
     :left (move-selection-left params)
