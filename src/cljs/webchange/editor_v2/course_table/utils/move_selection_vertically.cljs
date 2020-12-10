@@ -39,6 +39,16 @@
   [level-id table-map]
   (get-in table-map [:levels level-id :lessons-ids]))
 
+(defn- get-levels-count
+  [table-map]
+  (->> (get-in table-map [:levels-ids])
+       (count)))
+
+(defn- get-lessons-count
+  [level-id table-map]
+  (->> (get-level-lessons level-id table-map)
+       (count)))
+
 (defn- level-position->level-id
   [level-position table-map]
   (-> (get-in table-map [:levels-ids])
@@ -64,13 +74,35 @@
                                   (assoc :lesson-idx (dec previous-lesson-activities-count))))
       (> level-position 0) (let [previous-level-id (level-position->level-id (dec level-position) table-map)
                                  previous-level-last-lessons-id (last (get-level-lessons previous-level-id table-map))
-                                 previous-level-last-lessons-activities-count (get-activities-count previous-level-last-lessons-id previous-level-id table-map)]
+                                 previous-level-last-lesson-activities-count (get-activities-count previous-level-last-lessons-id previous-level-id table-map)]
                              (-> selection
                                  (assoc :level previous-level-id)
                                  (assoc :lesson previous-level-last-lessons-id)
-                                 (assoc :lesson-idx (dec previous-level-last-lessons-activities-count))))
+                                 (assoc :lesson-idx (dec previous-level-last-lesson-activities-count))))
       :else selection)))
 
 (defn move-selection-down
   [{:keys [selection table-data]}]
-  selection)
+  (let [{:keys [level lesson lesson-idx]} selection
+        table-map (get-table-map table-data)
+        lesson-position (get-lesson-in-level-position lesson level table-map)
+        level-position (get-level-position level table-map)]
+    (cond
+      (->> (get-activities-count lesson level table-map)
+           (dec)
+           (< lesson-idx)) (update selection :lesson-idx inc)
+      (->> (get-lessons-count level table-map)
+           (dec)
+           (< lesson-position)) (let [next-lesson-id (lesson-position->lesson-id (inc lesson-position) level table-map)]
+                                  (-> selection
+                                      (assoc :lesson next-lesson-id)
+                                      (assoc :lesson-idx 0)))
+      (->> (get-levels-count table-map)
+           (dec)
+           (< level-position)) (let [next-level-id (level-position->level-id (inc level-position) table-map)
+                                     next-level-first-lesson-id (first (get-level-lessons next-level-id table-map))]
+                                 (-> selection
+                                     (assoc :level next-level-id)
+                                     (assoc :lesson next-level-first-lesson-id)
+                                     (assoc :lesson-idx 0)))
+      :else selection)))
