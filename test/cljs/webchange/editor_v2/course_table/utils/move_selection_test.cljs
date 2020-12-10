@@ -97,7 +97,7 @@
                                      {:level 2, :lesson 3, :lesson-idx 2})]
           (is (= actual-result expected-result))))
 
-    #_(testing "move from 1st level row"
+    (testing "move from 1st level row"
         (let [data {:columns   columns
                     :direction direction
                   :table-data table-data
@@ -108,7 +108,7 @@
                                      {:level 1, :lesson 2, :lesson-idx 2})]
           (is (= actual-result expected-result))))
 
-    #_(testing "move from 1st table row"
+    (testing "move from 1st table row"
         (let [data {:columns   columns
                     :direction direction
                   :table-data table-data

@@ -1,31 +1,5 @@
 (ns webchange.editor-v2.course-table.utils.move-selection-vertically)
 
-(defn- get-level-rows
-  [level rows]
-  (->> rows
-       (filter (fn [row]
-                 (= (:level row) level)))))
-
-(defn- get-lesson-rows
-  [lesson level rows]
-  (->> rows
-       (get-level-rows level)
-       (filter (fn [row]
-                 (= (:lesson row) lesson)))))
-
-(defn- get-lesson-position
-  [lesson level rows]
-  (->> (get-level-rows level rows)
-       (map-indexed vector)
-       (some (fn [[idx row]]
-               (and (= (:lesson row) lesson)
-                    idx)))))
-
-;(defn get-lesson-activities
-;  [lesson level table-data]
-;  (let [[_ lesson-data] (get-lesson lesson level table-data)]
-;    ))
-
 (defn- get-item-idx
   [item list]
   (some (fn [[idx list-item]]
@@ -49,21 +23,54 @@
           {}
           rows))
 
+(defn- get-level-position
+  [level-id table-map]
+  (get-item-idx level-id (get-in table-map [:levels-ids])))
+
+(defn- get-lesson-in-level-position
+  [lesson-id level-id table-map]
+  (get-item-idx lesson-id (get-in table-map [:levels level-id :lessons-ids])))
+
+(defn- get-activities-count
+  [lesson-id level-id table-map]
+  (get-in table-map [:levels level-id :lessons lesson-id :activities-count]))
+
+(defn- get-level-lessons
+  [level-id table-map]
+  (get-in table-map [:levels level-id :lessons-ids]))
+
+(defn- level-position->level-id
+  [level-position table-map]
+  (-> (get-in table-map [:levels-ids])
+      (nth level-position)))
+
+(defn- lesson-position->lesson-id
+  [lesson-position level-id table-map]
+  (-> (get-in table-map [:levels level-id :lessons-ids])
+      (nth lesson-position)))
+
 (defn move-selection-up
   [{:keys [selection table-data]}]
-  (print ">> move-selection-top")
-  (print "selection" selection)
-  (let [{:keys [level lesson lesson-idx]} selection]
-    (if (> lesson-idx 0)
-      (update selection :lesson-idx dec)
-      (let [table-map (get-table-map table-data)
-            lesson-position (get-item-idx lesson (get-in table-map [:levels level :lessons-ids]))]
-        (if (> lesson-position 0)
-          (let [previous-lesson-id (nth (get-in table-map [:levels level :lessons-ids]) (dec lesson-position))
-                previous-lesson-activities-count (dec (get-in table-map [:levels level :lessons previous-lesson-id :activities-count]))]
-            (-> selection
-                (assoc :lesson previous-lesson-id)
-                (assoc :lesson-idx previous-lesson-activities-count)))
-          selection)
+  (let [{:keys [level lesson lesson-idx]} selection
+        table-map (get-table-map table-data)
+        lesson-position (get-lesson-in-level-position lesson level table-map)
+        level-position (get-level-position level table-map)]
+    (cond
+      (> lesson-idx 0) (update selection :lesson-idx dec)
+      (> lesson-position 0) (let [previous-lesson-id (lesson-position->lesson-id (dec lesson-position) level table-map)
+                                  previous-lesson-activities-count (get-activities-count previous-lesson-id level table-map)]
+                              (-> selection
+                                  (assoc :lesson previous-lesson-id)
+                                  (assoc :lesson-idx (dec previous-lesson-activities-count))))
+      (> level-position 0) (let [previous-level-id (level-position->level-id (dec level-position) table-map)
+                                 previous-level-last-lessons-id (last (get-level-lessons previous-level-id table-map))
+                                 previous-level-last-lessons-activities-count (get-activities-count previous-level-last-lessons-id previous-level-id table-map)]
+                             (-> selection
+                                 (assoc :level previous-level-id)
+                                 (assoc :lesson previous-level-last-lessons-id)
+                                 (assoc :lesson-idx (dec previous-level-last-lessons-activities-count))))
+      :else selection)))
 
-        ))))
+(defn move-selection-down
+  [{:keys [selection table-data]}]
+  selection)
